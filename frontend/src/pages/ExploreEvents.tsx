@@ -1,31 +1,42 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
-import { getPublicEvents, joinEvent } from '@/lib/storage';
+import { getPublicEvents as apiGetPublicEvents, joinEventByCode } from '@/lib/api';
+import { getId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 const ExploreEvents = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const events = getPublicEvents();
+  const [events, setEvents] = React.useState<any[]>([]);
 
-  const handleJoin = (eventId: string, eventTitle: string) => {
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await apiGetPublicEvents();
+        if (mounted) setEvents(data);
+      } catch (err) {
+        // ignore for now
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  const handleJoin = async (event: any) => {
     if (!user) return;
-    const success = joinEvent(eventId, {
-      userId: user.id,
-      name: user.name,
-      email: user.email,
-      joinedAt: new Date().toISOString(),
-    });
-
-    if (success) {
-      toast({ title: 'Joined!', description: `You're attending ${eventTitle}` });
-      navigate(`/dashboard/event/${eventId}`);
-    } else {
-      toast({ title: 'Could not join', description: 'Already joined or event is full', variant: 'destructive' });
+    try {
+      const joined = await joinEventByCode(event.eventCode || event.code || event.code);
+      toast({ title: 'Joined!', description: `You're attending ${event.title}` });
+      const id = joined._id || joined.id || event._id || event.id;
+      navigate(`/dashboard/event/${id}`);
+    } catch (err: any) {
+      toast({ title: 'Could not join', description: err.message || 'Already joined or event is full', variant: 'destructive' });
     }
   };
 
@@ -39,17 +50,25 @@ const ExploreEvents = () => {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {events.map((event) => (
-            <Card key={event.id} className="hover-lift">
+            <Card key={event._id || event.id} className="hover-lift">
               <CardContent className="p-6 space-y-4">
                 <h3 className="font-semibold text-lg">{event.title}</h3>
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />{new Date(event.date).toLocaleDateString()} at {event.time}</div>
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4" />{event.location}</div>
-                  <div className="flex items-center gap-2"><Users className="w-4 h-4" />{event.guests.length} attending • by {event.hostName}</div>
+                  <div className="flex items-center gap-2"><Users className="w-4 h-4" />{(event.guests || []).length} attending • by {event.host?.name || event.hostName || 'Host'}</div>
                 </div>
-                <Button className="w-full" onClick={() => handleJoin(event.id, event.title)} disabled={event.hostId === user?.id}>
-                  {event.hostId === user?.id ? 'Your Event' : 'Join'} <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
+                {(() => {
+                  const userId = getId(user);
+                  const hostId = getId(event.host) || getId(event.hostId);
+                  const isHost = !!userId && !!hostId && String(userId) === String(hostId);
+                  const disabled = !user || isHost;
+                  return (
+                    <Button className="w-full" onClick={() => handleJoin(event)} disabled={disabled}>
+                      {isHost ? 'Your Event' : 'Join'} <ArrowRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  );
+                })()}
               </CardContent>
             </Card>
           ))}

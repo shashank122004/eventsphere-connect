@@ -16,6 +16,7 @@ import MyEvents from "./pages/MyEvents";
 import Contacts from "./pages/Contacts";
 import EventHistory from "./pages/EventHistory";
 import EventDetails from "./pages/EventDetails";
+import AttendingEvent from "./pages/AttendingEvent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/dashboard/contacts" element={<Contacts />} />
                 <Route path="/dashboard/history" element={<EventHistory />} />
                 <Route path="/dashboard/event/:id" element={<EventDetails />} />
+                <Route path="/dashboard/event/attending/:id" element={<AttendingEvent />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

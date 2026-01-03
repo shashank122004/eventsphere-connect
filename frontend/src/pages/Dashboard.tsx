@@ -12,16 +12,34 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
-import { getUserHostedEvents, getUserJoinedEvents } from '@/lib/storage';
+import { getMyEvents } from '@/lib/api';
+import React from 'react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const hostedEvents = user ? getUserHostedEvents(user.id) : [];
-  const joinedEvents = user ? getUserJoinedEvents(user.id) : [];
+  const [hostedEvents, setHostedEvents] = React.useState<any[]>([]);
+  const [joinedEvents, setJoinedEvents] = React.useState<any[]>([]);
   const upcomingHosted = hostedEvents.filter(e => e.status === 'upcoming');
   const upcomingJoined = joinedEvents.filter(e => e.status === 'upcoming');
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!user) return;
+      try {
+        const data = await getMyEvents();
+        if (!mounted) return;
+        setHostedEvents(data.hosted || data.hosted || data.hostedEvents || data.hosted || []);
+        setJoinedEvents(data.joined || data.joined || data.joinedEvents || []);
+      } catch (err) {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user]);
 
   const quickActions = [
     {
@@ -137,9 +155,9 @@ const Dashboard = () => {
               <div className="space-y-3">
                 {upcomingHosted.slice(0, 3).map((event) => (
                   <div
-                    key={event.id}
+                    key={event._id || event.id}
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                    onClick={() => navigate(`/dashboard/event/${event.id}`)}
+                    onClick={() => navigate(`/dashboard/event/${event._id || event.id}`)}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -196,9 +214,9 @@ const Dashboard = () => {
               <div className="space-y-3">
                 {upcomingJoined.slice(0, 3).map((event) => (
                   <div
-                    key={event.id}
+                    key={event._id || event.id}
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                    onClick={() => navigate(`/dashboard/event/${event.id}`)}
+                    onClick={() => navigate(`/dashboard/event/attending/${event._id || event.id}`)}
                   >
                     <div className="flex items-center justify-between">
                       <div>

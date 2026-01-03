@@ -1,14 +1,32 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { getUserHostedEvents, getUserJoinedEvents } from '@/lib/storage';
+import React from 'react';
+import { getEventHistory } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
 const EventHistory = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const hosted = user ? getUserHostedEvents(user.id).filter(e => e.status === 'completed') : [];
-  const joined = user ? getUserJoinedEvents(user.id).filter(e => e.status === 'completed') : [];
-  const all = [...hosted.map(e => ({...e, type: 'hosted'})), ...joined.map(e => ({...e, type: 'joined'}))].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const [all, setAll] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!user) return;
+      try {
+        const data = await getEventHistory();
+        if (!mounted) return;
+        const hosted = (data.hosted || []).map((e:any) => ({ ...e, type: 'hosted' }));
+        const joined = (data.joined || []).map((e:any) => ({ ...e, type: 'joined' }));
+        const merged = [...hosted, ...joined].sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setAll(merged);
+      } catch (err) {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user]);
 
   return (
     <div className="animate-fade-in">
@@ -18,7 +36,7 @@ const EventHistory = () => {
       ) : (
         <div className="space-y-3">
           {all.map(event => (
-            <div key={event.id} className="p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer transition-colors" onClick={() => navigate(`/dashboard/event/${event.id}`)}>
+            <div key={event._id || event.id} className="p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer transition-colors" onClick={() => navigate(`/dashboard/event/${event._id || event.id}`)}>
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-medium">{event.title}</p>

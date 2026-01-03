@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar, MapPin, Globe, Users, ArrowRight } from 'lucide-react';
-import { createEvent } from '@/lib/storage';
+import { createEvent as apiCreateEvent } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 const HostEvent = () => {
@@ -28,21 +28,38 @@ const HostEvent = () => {
     maxGuests: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    setIsLoading(true);
-    const event = createEvent({
-      ...form,
-      maxGuests: form.maxGuests ? parseInt(form.maxGuests) : undefined,
-      hostId: user.id,
-      hostName: user.name,
-    });
-    setIsLoading(false);
+    // Validate date: must be today or in the future
+    if (!form.date) {
+      toast({ title: 'Invalid date', description: 'Please select a date', variant: 'destructive' });
+      return;
+    }
+    const selected = new Date(form.date);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    selected.setHours(0,0,0,0);
+    if (selected < today) {
+      toast({ title: 'Invalid date', description: 'Date must be today or later', variant: 'destructive' });
+      return;
+    }
 
-    toast({ title: 'Event created!', description: `Code: ${event.eventCode}` });
-    navigate(`/dashboard/event/${event.id}`);
+    setIsLoading(true);
+    try {
+      const event = await apiCreateEvent({
+        ...form,
+        maxGuests: form.maxGuests ? parseInt(form.maxGuests) : undefined,
+      });
+      toast({ title: 'Event created!', description: `Code: ${event.eventCode}` });
+      const id = event._id || event.id;
+      navigate(`/dashboard/event/${id}`);
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err.message || 'Could not create event', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

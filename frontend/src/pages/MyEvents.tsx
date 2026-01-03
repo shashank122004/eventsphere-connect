@@ -2,17 +2,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Users } from 'lucide-react';
-import { getUserHostedEvents, getUserJoinedEvents } from '@/lib/storage';
 import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { getMyEvents } from '@/lib/api';
 
 const MyEvents = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const hosted = user ? getUserHostedEvents(user.id).filter(e => e.status === 'upcoming') : [];
-  const joined = user ? getUserJoinedEvents(user.id).filter(e => e.status === 'upcoming') : [];
+  const [hosted, setHosted] = React.useState<any[]>([]);
+  const [joined, setJoined] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!user) return;
+      try {
+        const data = await getMyEvents();
+        if (!mounted) return;
+        setHosted((data.hosted || data.hosted || data.hostedEvents || []).filter((e:any) => e.status === 'upcoming'));
+        setJoined((data.joined || data.joined || data.joinedEvents || []).filter((e:any) => e.status === 'upcoming'));
+      } catch (err) {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user]);
 
   const EventCard = ({ event }: { event: any }) => (
-    <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer transition-colors" onClick={() => navigate(`/dashboard/event/${event.id}`)}>
+    <div className="p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer transition-colors" onClick={() => navigate(`/dashboard/event/${event._id || event.id}`)}>
       <div className="flex justify-between items-start">
         <div>
           <p className="font-medium">{event.title}</p>
@@ -29,10 +47,10 @@ const MyEvents = () => {
       <Tabs defaultValue="hosted">
         <TabsList><TabsTrigger value="hosted"><Calendar className="w-4 h-4 mr-2" />Hosted ({hosted.length})</TabsTrigger><TabsTrigger value="joined"><Users className="w-4 h-4 mr-2" />Joined ({joined.length})</TabsTrigger></TabsList>
         <TabsContent value="hosted" className="mt-6">
-          {hosted.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No hosted events</CardContent></Card> : <div className="space-y-3">{hosted.map(e => <EventCard key={e.id} event={e} />)}</div>}
+          {hosted.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No hosted events</CardContent></Card> : <div className="space-y-3">{hosted.map(e => <EventCard key={e._id || e.id} event={e} />)}</div>}
         </TabsContent>
         <TabsContent value="joined" className="mt-6">
-          {joined.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No joined events</CardContent></Card> : <div className="space-y-3">{joined.map(e => <EventCard key={e.id} event={e} />)}</div>}
+          {joined.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No joined events</CardContent></Card> : <div className="space-y-3">{joined.map(e => <EventCard key={e._id || e.id} event={e} />)}</div>}
         </TabsContent>
       </Tabs>
     </div>

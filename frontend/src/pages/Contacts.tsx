@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,30 +6,54 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, Mail, Phone } from 'lucide-react';
-import { getContacts, saveContact, deleteContact } from '@/lib/storage';
+import { getContacts as apiGetContacts, addContact as apiAddContact, deleteContact as apiDeleteContact } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 const Contacts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [contacts, setContacts] = useState(user ? getContacts(user.id) : []);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!user || !form.name || !form.email) return;
-    const newContact = saveContact({ userId: user.id, ...form });
-    setContacts([...contacts, newContact]);
-    setForm({ name: '', email: '', phone: '' });
-    setOpen(false);
-    toast({ title: 'Contact added' });
+    try {
+      const newContact = await apiAddContact(form);
+      setContacts(prev => [...prev, newContact]);
+      setForm({ name: '', email: '', phone: '' });
+      setOpen(false);
+      toast({ title: 'Contact added' });
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err.message || 'Could not add contact', variant: 'destructive' });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    deleteContact(id);
-    setContacts(contacts.filter(c => c.id !== id));
-    toast({ title: 'Contact deleted' });
+  const handleDelete = async (id: string) => {
+    try {
+      await apiDeleteContact(id);
+      setContacts(prev => prev.filter(c => (c._id || c.id) !== id));
+      toast({ title: 'Contact deleted' });
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err.message || 'Could not delete contact', variant: 'destructive' });
+    }
   };
+
+  // load contacts
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!user) return;
+      try {
+        const data = await apiGetContacts();
+        if (mounted) setContacts(data);
+      } catch (err) {
+        // ignore for now
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user]);
 
   return (
     <div className="animate-fade-in">
@@ -54,7 +78,7 @@ const Contacts = () => {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {contacts.map(contact => (
-            <Card key={contact.id} className="hover-lift">
+            <Card key={contact._id || contact.id} className="hover-lift">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -65,7 +89,7 @@ const Contacts = () => {
                       {contact.phone && <p className="text-sm text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{contact.phone}</p>}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(contact.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(contact._id || contact.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                 </div>
               </CardContent>
             </Card>

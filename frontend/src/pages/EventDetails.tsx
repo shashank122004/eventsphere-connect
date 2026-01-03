@@ -1,10 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import React from 'react';
+import { getEventById } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getId } from '@/lib/utils';
+import { deleteEvent } from '@/lib/api';
 import { Calendar, MapPin, Users, Clock, Copy, Share2, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getEventById } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 
 const EventDetails = () => {
@@ -12,7 +15,22 @@ const EventDetails = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const event = id ? getEventById(id) : undefined;
+  const [event, setEvent] = React.useState<any | undefined>(undefined);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!id) return;
+      try {
+        const data = await getEventById(id);
+        if (mounted) setEvent(data);
+      } catch (err) {
+        if (mounted) setEvent(undefined);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [id]);
 
   if (!event) {
     return (
@@ -23,7 +41,13 @@ const EventDetails = () => {
     );
   }
 
-  const isHost = user?.id === event.hostId;
+  const hostId = getId(event?.host) || getId(event?.hostId) || getId(event?.host?._id) || getId(event?.host?.id) || null;
+  const isHost = !!user && (!!getId(user) ? getId(user) === hostId : user?.id === hostId);
+  const guests = Array.isArray(event?.guests) ? event.guests : [];
+  const eventDate = event?.date ? (() => {
+    try { return new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
+    catch { return 'TBD'; }
+  })() : 'TBD';
   const copyCode = () => {
     navigator.clipboard.writeText(event.eventCode);
     toast({ title: 'Copied!', description: 'Event code copied to clipboard' });
@@ -45,7 +69,7 @@ const EventDetails = () => {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{event.title}</CardTitle>
+                <CardTitle className="text-2xl">{event.title || 'Untitled Event'}</CardTitle>
                 <span className={`px-3 py-1 rounded-full text-sm ${event.isPublic ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                   {event.isPublic ? 'Public' : 'Private'}
                 </span>
@@ -56,15 +80,15 @@ const EventDetails = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-primary" />
-                  <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span>{eventDate}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Clock className="w-5 h-5 text-primary" />
-                  <span>{event.time}</span>
+                  <span>{event.time || 'TBD'}</span>
                 </div>
                 <div className="flex items-center gap-3 sm:col-span-2">
                   <MapPin className="w-5 h-5 text-primary" />
-                  <span>{event.location}</span>
+                  <span>{event.location || 'TBD'}</span>
                 </div>
               </div>
             </CardContent>
@@ -73,7 +97,7 @@ const EventDetails = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" /> Guest List ({event.guests.length}{event.maxGuests ? `/${event.maxGuests}` : ''})
+                <Users className="w-5 h-5" /> Guest List ({guests.length}{event.maxGuests ? `/${event.maxGuests}` : ''})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -81,17 +105,21 @@ const EventDetails = () => {
                 <p className="text-muted-foreground text-center py-4">No guests yet</p>
               ) : (
                 <div className="space-y-2">
-                  {event.guests.map((guest, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                        {guest.name.charAt(0)}
+                  {guests.map((guest: any, i: number) => {
+                    const guestName = guest?.name || guest?.user?.name || guest?.user?.email || guest?.email || (typeof guest?.user === 'string' ? guest.user : null) || 'Guest';
+                    const key = getId(guest) || getId(guest.user) || i;
+                    return (
+                      <div key={key} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                          {String(guestName).charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{guestName}</p>
+                          <p className="text-sm text-muted-foreground">{guest?.email || guest?.user?.email || ''}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{guest.name}</p>
-                        <p className="text-sm text-muted-foreground">{guest.email}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -105,11 +133,11 @@ const EventDetails = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-center p-4 bg-white rounded-lg">
-                <QRCodeSVG value={event.eventLink} size={160} />
+                <QRCodeSVG value={event?.eventLink || ''} size={160} />
               </div>
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Event Code</p>
-                <p className="text-3xl font-mono font-bold tracking-widest">{event.eventCode}</p>
+                <p className="text-3xl font-mono font-bold tracking-widest">{event.eventCode || '—'}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={copyCode}><Copy className="w-4 h-4 mr-2" /> Code</Button>
@@ -120,8 +148,20 @@ const EventDetails = () => {
 
           {isHost && (
             <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="p-4 text-center">
+              <CardContent className="p-4 text-center space-y-3">
                 <p className="text-sm text-primary font-medium">You are hosting this event</p>
+                <div>
+                  <Button variant="destructive" onClick={async () => {
+                    if (!confirm('Delete this event? This action cannot be undone.')) return;
+                    try {
+                      await deleteEvent(getId(event) || event._id || event.id);
+                      toast({ title: 'Deleted', description: 'Event deleted', variant: 'default' });
+                      navigate('/dashboard');
+                    } catch (err: any) {
+                      toast({ title: 'Could not delete', description: err?.message || 'Delete failed', variant: 'destructive' });
+                    }
+                  }}>Delete Event</Button>
+                </div>
               </CardContent>
             </Card>
           )}
