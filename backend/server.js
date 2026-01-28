@@ -4,6 +4,7 @@ import app from "./src/app.js";
 import  connectDB  from "./src/config/db.js";
 import path from "path";
 import express from "express";
+import cors from "cors"; 
 
 const __dirname = path.resolve();
 app.use(express.static(path.join(__dirname, "/frontend/dist")));
@@ -11,6 +12,11 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
+const corsoptions = {
+  origin: "https://eventsphere-connect.onrender.com",
+  Credentials: true,
+};
+app.use(cors(corsoptions));
 
 const start = async () => {
   try {

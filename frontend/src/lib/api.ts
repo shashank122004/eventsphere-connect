@@ -1,6 +1,6 @@
 import { User } from '@/types';
 
-const BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:3000/api';
+const BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'https://eventsphere-connect.onrender.com/api';
 
 const TOKEN_KEY = 'eventify_token';
 
