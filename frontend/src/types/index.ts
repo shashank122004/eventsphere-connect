@@ -1,8 +1,10 @@
 export interface User {
   id: string;
+  _id?: string; // MongoDB ID
   name: string;
   email: string;
   phone: string;
+  emailVerified?: boolean;
   createdAt: string;
 }
 

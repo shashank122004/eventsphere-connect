@@ -30,6 +30,30 @@ export async function signup(name: string, email: string, phone: string, passwor
   return data;
 }
 
+export async function verifyEmailCode(email: string, code: string, isNewSignup: boolean = false): Promise<{ token: string; user: User }>{
+  const res = await fetch(`${BASE}/auth/verify-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, isNewSignup }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || 'Verification failed');
+  const data = await res.json();
+  if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+  return data;
+}
+
+export async function resendOtp(email: string): Promise<{ message: string }>{
+  const res = await fetch(`${BASE}/auth/resend-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || 'Failed to resend OTP');
+  return res.json();
+}
+
 export function setToken(token: string){
   localStorage.setItem(TOKEN_KEY, token);
 }
@@ -113,5 +137,39 @@ export async function getEventHistory(){
 export async function leaveEvent(id: string){
   const res = await authFetch(`/events/${id}/leave`, { method: 'POST' });
   if (!res.ok) throw new Error((await res.json()).message || 'Failed to leave event');
+  return res.json();
+}
+
+// Password Reset
+export async function forgotPassword(email: string): Promise<{ message: string; email: string }>{
+  const res = await fetch(`${BASE}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || 'Failed to send reset OTP');
+  return res.json();
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<{ message: string }>{
+  const res = await fetch(`${BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || 'Failed to reset password');
+  return res.json();
+}
+
+// Invites
+export async function sendInvites(event: any, contacts: any[]): Promise<{ message: string }>{
+  const res = await authFetch('/invites/send', {
+    method: 'POST',
+    body: JSON.stringify({ event, contacts }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || 'Failed to send invites');
   return res.json();
 }

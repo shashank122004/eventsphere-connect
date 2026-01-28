@@ -1,14 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import React from 'react';
-import { getEventById } from '@/lib/api';
+import { getEventById, getContacts } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getId } from '@/lib/utils';
-import { deleteEvent } from '@/lib/api';
-import { Calendar, MapPin, Users, Clock, Copy, Share2, ArrowLeft } from 'lucide-react';
+import { deleteEvent, sendInvites } from '@/lib/api';
+import { Calendar, MapPin, Users, Clock, Copy, Share2, ArrowLeft, Mail as MailIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -16,6 +18,10 @@ const EventDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [event, setEvent] = React.useState<any | undefined>(undefined);
+  const [contacts, setContacts] = React.useState<any[]>([]);
+  const [selectedContacts, setSelectedContacts] = React.useState<string[]>([]);
+  const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [sendingInvites, setSendingInvites] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -31,6 +37,21 @@ const EventDetails = () => {
     load();
     return () => { mounted = false; };
   }, [id]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!user) return;
+      try {
+        const data = await getContacts();
+        if (mounted) setContacts(data);
+      } catch (err) {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user]);
 
   if (!event) {
     return (
@@ -56,6 +77,26 @@ const EventDetails = () => {
   const copyLink = () => {
     navigator.clipboard.writeText(event.eventLink);
     toast({ title: 'Copied!', description: 'Event link copied to clipboard' });
+  };
+
+  const handleSendInvites = async () => {
+    if (selectedContacts.length === 0) {
+      toast({ title: 'Select contacts', description: 'Please select at least one contact', variant: 'destructive' });
+      return;
+    }
+
+    setSendingInvites(true);
+    try {
+      const contactsToSend = contacts.filter(c => selectedContacts.includes(c._id || c.id));
+      await sendInvites(event, contactsToSend);
+      toast({ title: 'Invites sent!', description: `Sent to ${selectedContacts.length} contact${selectedContacts.length !== 1 ? 's' : ''}` });
+      setSelectedContacts([]);
+      setInviteOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Failed to send', description: err?.message || 'Could not send invites', variant: 'destructive' });
+    } finally {
+      setSendingInvites(false);
+    }
   };
 
   return (
@@ -143,6 +184,59 @@ const EventDetails = () => {
                 <Button variant="outline" onClick={copyCode}><Copy className="w-4 h-4 mr-2" /> Code</Button>
                 <Button variant="outline" onClick={copyLink}><Share2 className="w-4 h-4 mr-2" /> Link</Button>
               </div>
+              {isHost && (
+                <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full gradient-primary">
+                      <MailIcon className="w-4 h-4 mr-2" /> Send Invites
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Send Invites to Contacts</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      {contacts.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-6">No contacts added yet</p>
+                      ) : (
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {contacts.map((contact) => (
+                            <div key={contact._id || contact.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded">
+                              <Checkbox
+                                checked={selectedContacts.includes(contact._id || contact.id)}
+                                onCheckedChange={(checked) => {
+                                  const id = contact._id || contact.id;
+                                  if (checked) {
+                                    setSelectedContacts([...selectedContacts, id]);
+                                  } else {
+                                    setSelectedContacts(selectedContacts.filter(c => c !== id));
+                                  }
+                                }}
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{contact.name}</p>
+                                <p className="text-xs text-muted-foreground">{contact.email}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setInviteOpen(false)} className="flex-1">
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleSendInvites} 
+                          disabled={sendingInvites || selectedContacts.length === 0}
+                          className="flex-1 gradient-primary"
+                        >
+                          {sendingInvites ? 'Sending...' : `Send to ${selectedContacts.length}`}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardContent>
           </Card>
 
