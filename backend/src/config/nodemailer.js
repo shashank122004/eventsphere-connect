@@ -6,7 +6,7 @@ dotenv.config();
 let transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false, 
     auth: {
       user: process.env.BREVO_USER, // generated brevo user
       pass: process.env.BREVO_API_KEY, // generated brevo password
