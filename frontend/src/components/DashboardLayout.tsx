@@ -134,11 +134,12 @@ const DashboardLayout = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:p-8 p-4 pt-20 lg:pt-8 overflow-auto">
-        <div className="max-w-6xl mx-auto">
-          <Outlet />
-        </div>
-      </main>
+      <main className="flex-1 overflow-auto pt-20 lg:pt-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 lg:max-w-6xl lg:mx-auto">
+    <Outlet />
+  </div>
+</main>
+
     </div>
   );
 };
