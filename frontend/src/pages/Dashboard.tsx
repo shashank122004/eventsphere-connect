@@ -1,18 +1,10 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  PlusCircle,
-  QrCode,
-  Compass,
-  Calendar,
-  Users,
-  ArrowRight,
-  Sparkles,
-} from 'lucide-react';
+import { PlusCircle, QrCode, Compass, Calendar, Users, ArrowRight, Sparkles } from 'lucide-react';
 import { getMyEvents } from '@/lib/api';
-import React from 'react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -20,37 +12,61 @@ const Dashboard = () => {
 
   const [hostedEvents, setHostedEvents] = React.useState<any[]>([]);
   const [joinedEvents, setJoinedEvents] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  // Filter upcoming events
   const upcomingHosted = hostedEvents.filter(e => e.status === 'upcoming');
   const upcomingJoined = joinedEvents.filter(e => e.status === 'upcoming');
 
+  // Fetch events from API
   React.useEffect(() => {
     let mounted = true;
-    const load = async () => {
+
+    const loadEvents = async () => {
       if (!user) return;
       try {
         const data = await getMyEvents();
         if (!mounted) return;
+
+        console.log('API data:', data); // debug API
+
         setHostedEvents(data.hostedEvents || []);
         setJoinedEvents(data.joinedEvents || []);
       } catch (err) {
-        // ignore
+        console.error('Error fetching events:', err);
+        setHostedEvents([]);
+        setJoinedEvents([]);
+      } finally {
+        setLoading(false);
       }
     };
-    load();
+
+    loadEvents();
+
     return () => { mounted = false; };
   }, [user]);
 
+  // Quick Actions
   const quickActions = [
     { icon: PlusCircle, title: 'Host Event', description: 'Create a new event', to: '/dashboard/host', gradient: 'gradient-primary' },
     { icon: QrCode, title: 'Join Event', description: 'Enter code or scan QR', to: '/dashboard/join', gradient: 'gradient-accent' },
     { icon: Compass, title: 'Explore', description: 'Find public events', to: '/dashboard/explore', gradient: 'gradient-primary' },
   ];
 
+  // Stats
   const stats = [
     { icon: Calendar, value: hostedEvents.length, label: 'Events Hosted' },
     { icon: Users, value: joinedEvents.length, label: 'Events Joined' },
     { icon: Sparkles, value: upcomingHosted.length + upcomingJoined.length, label: 'Upcoming' },
   ];
+
+  if (!user) {
+    return <div className="text-center py-20">Loading user...</div>;
+  }
+
+  if (loading) {
+    return <div className="text-center py-20">Loading events...</div>;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
