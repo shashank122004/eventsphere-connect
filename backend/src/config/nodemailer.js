@@ -1,22 +1,28 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+
 dotenv.config();
-// Create transporter with Gmail or other email service
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: process.env.EMAIL_PORT || 587,
-  secure: process.env.EMAIL_SECURE === 'true' || false, // true for 465, false for other ports
+  host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
+  port: Number(process.env.EMAIL_PORT) || 587,
+  secure: process.env.EMAIL_SECURE === 'true', // false for 587
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: process.env.EMAIL_USER,      // "apikey" for Brevo
+    pass: process.env.EMAIL_PASSWORD,  // Brevo SMTP key
   },
+  tls: {
+    rejectUnauthorized: false, // important for cloud environments
+  },
+  connectionTimeout: 10000, // ⏱️ 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 const sendOtpEmail = async (email, code) => {
   try {
-    // Validate email config
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.error('EMAIL_USER or EMAIL_PASSWORD is not set in environment variables');
+      console.error('EMAIL_USER or EMAIL_PASSWORD not set');
       return false;
     }
 
@@ -25,24 +31,17 @@ const sendOtpEmail = async (email, code) => {
       to: email,
       subject: 'Your Email Verification Code',
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5; border-radius: 10px;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; margin-bottom: 20px;">Email Verification</h2>
-            <p style="color: #666; font-size: 16px; margin-bottom: 20px;">Your verification code is:</p>
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <h1 style="font-size: 48px; letter-spacing: 10px; font-weight: bold; color: #007bff; margin: 0;">${code}</h1>
-            </div>
-            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">This code will expire in 10 minutes.</p>
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-            <p style="color: #999; font-size: 12px; margin-top: 10px;">Eventify Team</p>
-          </div>
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>Email Verification</h2>
+          <p>Your verification code is:</p>
+          <h1 style="letter-spacing: 8px;">${code}</h1>
+          <p>This code expires in 10 minutes.</p>
         </div>
       `,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('OTP email sent successfully to:', email, 'Message ID:', info.messageId);
+    console.log('OTP email sent:', info.messageId);
     return true;
   } catch (err) {
     console.error('Email send error:', err.message);
