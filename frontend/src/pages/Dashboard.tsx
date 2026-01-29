@@ -1,10 +1,19 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, QrCode, Compass, Calendar, Users, ArrowRight, Sparkles } from 'lucide-react';
+import {
+  PlusCircle,
+  QrCode,
+  Compass,
+  Calendar,
+  Users,
+  History,
+  ArrowRight,
+  Sparkles,
+} from 'lucide-react';
 import { getMyEvents } from '@/lib/api';
+import React from 'react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -12,71 +21,65 @@ const Dashboard = () => {
 
   const [hostedEvents, setHostedEvents] = React.useState<any[]>([]);
   const [joinedEvents, setJoinedEvents] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-
-  // Filter upcoming events
   const upcomingHosted = hostedEvents.filter(e => e.status === 'upcoming');
   const upcomingJoined = joinedEvents.filter(e => e.status === 'upcoming');
 
-  // Fetch events from API
   React.useEffect(() => {
     let mounted = true;
-
-    const loadEvents = async () => {
+    const load = async () => {
       if (!user) return;
       try {
         const data = await getMyEvents();
         if (!mounted) return;
-
-        console.log('API data:', data); // debug API
-
-        setHostedEvents(data.hostedEvents || []);
-        setJoinedEvents(data.joinedEvents || []);
+        setHostedEvents(data.hosted || data.hosted || data.hostedEvents || data.hosted || []);
+        setJoinedEvents(data.joined || data.joined || data.joinedEvents || []);
       } catch (err) {
-        console.error('Error fetching events:', err);
-        setHostedEvents([]);
-        setJoinedEvents([]);
-      } finally {
-        setLoading(false);
+        // ignore
       }
     };
-
-    loadEvents();
-
+    load();
     return () => { mounted = false; };
   }, [user]);
 
-  // Quick Actions
   const quickActions = [
-    { icon: PlusCircle, title: 'Host Event', description: 'Create a new event', to: '/dashboard/host', gradient: 'gradient-primary' },
-    { icon: QrCode, title: 'Join Event', description: 'Enter code or scan QR', to: '/dashboard/join', gradient: 'gradient-accent' },
-    { icon: Compass, title: 'Explore', description: 'Find public events', to: '/dashboard/explore', gradient: 'gradient-primary' },
+    {
+      icon: PlusCircle,
+      title: 'Host Event',
+      description: 'Create a new event',
+      to: '/dashboard/host',
+      gradient: 'gradient-primary',
+    },
+    {
+      icon: QrCode,
+      title: 'Join Event',
+      description: 'Enter code or scan QR',
+      to: '/dashboard/join',
+      gradient: 'gradient-accent',
+    },
+    {
+      icon: Compass,
+      title: 'Explore',
+      description: 'Find public events',
+      to: '/dashboard/explore',
+      gradient: 'gradient-primary',
+    },
   ];
 
-  // Stats
   const stats = [
     { icon: Calendar, value: hostedEvents.length, label: 'Events Hosted' },
     { icon: Users, value: joinedEvents.length, label: 'Events Joined' },
     { icon: Sparkles, value: upcomingHosted.length + upcomingJoined.length, label: 'Upcoming' },
   ];
 
-  if (!user) {
-    return <div className="text-center py-20">Loading user...</div>;
-  }
-
-  if (loading) {
-    return <div className="text-center py-20">Loading events...</div>;
-  }
-
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">
+          <h1 className="text-3xl font-bold">
             Welcome back, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>!
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1">
             What would you like to do today?
           </p>
         </div>
@@ -98,23 +101,22 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
-
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+        <div className="grid md:grid-cols-3 gap-4">
           {quickActions.map((action, i) => (
             <Card
               key={i}
               className="hover-lift cursor-pointer group"
               onClick={() => navigate(action.to)}
             >
-              <CardContent className="p-4 sm:p-6">
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl ${action.gradient} flex items-center justify-center mb-4`}>
-                  <action.icon className="w-6 sm:w-7 md:w-8 h-6 sm:h-7 md:h-8 text-primary-foreground" />
+              <CardContent className="p-6">
+                <div className={`w-12 h-12 rounded-xl ${action.gradient} flex items-center justify-center mb-4`}>
+                  <action.icon className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <h3 className="font-semibold text-base sm:text-lg md:text-lg mb-1">{action.title}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">{action.description}</p>
+                <h3 className="font-semibold text-lg mb-1">{action.title}</h3>
+                <p className="text-muted-foreground text-sm">{action.description}</p>
                 <ArrowRight className="w-5 h-5 mt-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </CardContent>
             </Card>
@@ -123,7 +125,7 @@ const Dashboard = () => {
       </div>
 
       {/* Upcoming Events */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Hosting */}
         <Card>
           <CardHeader>
@@ -156,9 +158,9 @@ const Dashboard = () => {
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => navigate(`/dashboard/event/${event._id || event.id}`)}
                   >
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium truncate sm:truncate-none">{event.title}</p>
+                        <p className="font-medium">{event.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(event.date).toLocaleDateString()} at {event.time}
                         </p>
@@ -215,9 +217,9 @@ const Dashboard = () => {
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => navigate(`/dashboard/event/attending/${event._id || event.id}`)}
                   >
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium truncate sm:truncate-none">{event.title}</p>
+                        <p className="font-medium">{event.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(event.date).toLocaleDateString()} at {event.time}
                         </p>
