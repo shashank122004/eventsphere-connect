@@ -8,7 +8,6 @@ import {
   Compass,
   Calendar,
   Users,
-  History,
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
@@ -31,8 +30,8 @@ const Dashboard = () => {
       try {
         const data = await getMyEvents();
         if (!mounted) return;
-        setHostedEvents(data.hosted || data.hosted || data.hostedEvents || data.hosted || []);
-        setJoinedEvents(data.joined || data.joined || data.joinedEvents || []);
+        setHostedEvents(data.hostedEvents || []);
+        setJoinedEvents(data.joinedEvents || []);
       } catch (err) {
         // ignore
       }
@@ -42,27 +41,9 @@ const Dashboard = () => {
   }, [user]);
 
   const quickActions = [
-    {
-      icon: PlusCircle,
-      title: 'Host Event',
-      description: 'Create a new event',
-      to: '/dashboard/host',
-      gradient: 'gradient-primary',
-    },
-    {
-      icon: QrCode,
-      title: 'Join Event',
-      description: 'Enter code or scan QR',
-      to: '/dashboard/join',
-      gradient: 'gradient-accent',
-    },
-    {
-      icon: Compass,
-      title: 'Explore',
-      description: 'Find public events',
-      to: '/dashboard/explore',
-      gradient: 'gradient-primary',
-    },
+    { icon: PlusCircle, title: 'Host Event', description: 'Create a new event', to: '/dashboard/host', gradient: 'gradient-primary' },
+    { icon: QrCode, title: 'Join Event', description: 'Enter code or scan QR', to: '/dashboard/join', gradient: 'gradient-accent' },
+    { icon: Compass, title: 'Explore', description: 'Find public events', to: '/dashboard/explore', gradient: 'gradient-primary' },
   ];
 
   const stats = [
@@ -76,26 +57,26 @@ const Dashboard = () => {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">
             Welcome back, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>!
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             What would you like to do today?
           </p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <Card key={i} className="hover-lift">
-            <CardContent className="p-4 flex items-center gap-4">
+            <CardContent className="p-4 sm:p-6 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-primary/10">
-                <stat.icon className="w-5 h-5 text-primary" />
+                <stat.icon className="w-5 sm:w-6 md:w-7 h-5 sm:h-6 md:h-7 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-xl sm:text-2xl md:text-2xl font-bold">{stat.value}</p>
+                <p className="text-sm sm:text-base text-muted-foreground">{stat.label}</p>
               </div>
             </CardContent>
           </Card>
@@ -104,20 +85,20 @@ const Dashboard = () => {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-        <div className="grid md:grid-cols-3 gap-4">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {quickActions.map((action, i) => (
             <Card
               key={i}
               className="hover-lift cursor-pointer group"
               onClick={() => navigate(action.to)}
             >
-              <CardContent className="p-6">
-                <div className={`w-12 h-12 rounded-xl ${action.gradient} flex items-center justify-center mb-4`}>
-                  <action.icon className="w-6 h-6 text-primary-foreground" />
+              <CardContent className="p-4 sm:p-6">
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl ${action.gradient} flex items-center justify-center mb-4`}>
+                  <action.icon className="w-6 sm:w-7 md:w-8 h-6 sm:h-7 md:h-8 text-primary-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg mb-1">{action.title}</h3>
-                <p className="text-muted-foreground text-sm">{action.description}</p>
+                <h3 className="font-semibold text-base sm:text-lg md:text-lg mb-1">{action.title}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">{action.description}</p>
                 <ArrowRight className="w-5 h-5 mt-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </CardContent>
             </Card>
@@ -126,7 +107,7 @@ const Dashboard = () => {
       </div>
 
       {/* Upcoming Events */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Hosting */}
         <Card>
           <CardHeader>
@@ -159,9 +140,9 @@ const Dashboard = () => {
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => navigate(`/dashboard/event/${event._id || event.id}`)}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                       <div>
-                        <p className="font-medium">{event.title}</p>
+                        <p className="font-medium truncate sm:truncate-none">{event.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(event.date).toLocaleDateString()} at {event.time}
                         </p>
@@ -218,9 +199,9 @@ const Dashboard = () => {
                     className="p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => navigate(`/dashboard/event/attending/${event._id || event.id}`)}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                       <div>
-                        <p className="font-medium">{event.title}</p>
+                        <p className="font-medium truncate sm:truncate-none">{event.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(event.date).toLocaleDateString()} at {event.time}
                         </p>
