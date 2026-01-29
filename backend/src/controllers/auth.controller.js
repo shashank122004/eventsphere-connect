@@ -1,7 +1,7 @@
 import User from "../models/User.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import sendOtpEmail from "../config/nodemailer.js";
+import sendOtpEmail from "../config/brevo.js";
 
 
 // In-memory storage for temp signup data and OTPs
