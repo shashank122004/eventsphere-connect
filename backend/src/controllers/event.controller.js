@@ -78,16 +78,6 @@ export const joinEvent = async (req, res) => {
 };
 
 export const getPublicEvents = async (req, res) => {
-<<<<<<< HEAD
-  const today = new Date();
-
-  const events = await Event.find({
-    isPublic: true,
-    date: { $gte: today }
-  });
-
-  res.json(events);
-=======
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -105,7 +95,6 @@ export const getPublicEvents = async (req, res) => {
     console.error('getPublicEvents error:', err.message);
     res.status(500).json({ message: 'Failed to fetch public events' });
   }
->>>>>>> develop
 };
 
 
