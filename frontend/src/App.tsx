@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import Landing from "./pages/Landing";
@@ -23,21 +24,22 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route element={<ProtectedRoute />}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/dashboard/host" element={<HostEvent />} />
-                <Route path="/dashboard/join" element={<JoinEvent />} />
-                <Route path="/dashboard/explore" element={<ExploreEvents />} />
-                <Route path="/dashboard/my-events" element={<MyEvents />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/dashboard/host" element={<HostEvent />} />
+                  <Route path="/dashboard/join" element={<JoinEvent />} />
+                  <Route path="/dashboard/explore" element={<ExploreEvents />} />
+                  <Route path="/dashboard/my-events" element={<MyEvents />} />
                 <Route path="/dashboard/contacts" element={<Contacts />} />
                 <Route path="/dashboard/history" element={<EventHistory />} />
                 <Route path="/dashboard/event/:id" element={<EventDetails />} />
@@ -49,6 +51,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

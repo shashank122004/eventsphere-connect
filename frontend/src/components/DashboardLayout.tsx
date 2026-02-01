@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import {
   Calendar,
@@ -12,12 +13,15 @@ import {
   LogOut,
   Menu,
   X,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const DashboardLayout = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -108,7 +112,20 @@ const DashboardLayout = () => {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 space-y-2 border-t border-border">
+          <Button
+            variant="ghost"
+            className="w-full justify-start px-4 py-3 sm:py-4"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <Moon className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
+            ) : (
+              <Sun className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
+            )}
+            {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          </Button>
           <Button
             variant="ghost"
             className="w-full justify-start px-4 py-3 sm:py-4 text-muted-foreground hover:text-destructive"

@@ -19,25 +19,34 @@ const JoinEvent = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleJoin = async () => {
-    if (!user || code.trim().length < 6) return;
+    if (!user) {
+      toast({ title: 'Not signed in', description: 'Please login to join events', variant: 'destructive' });
+      return;
+    }
+
+    if (code.trim().length < 6) {
+      toast({ title: 'Invalid code', description: 'Enter a 6-digit event code', variant: 'destructive' });
+      return;
+    }
 
     setIsLoading(true);
     try {
       const res = await joinEventByCode(code.toUpperCase().trim());
 
       toast({
-        title: "Joined successfully 🎉",
-        description: `You're now attending ${res.event.title}`,
+        title: 'Joined successfully 🎉',
+        description: `You're now attending ${res.title || 'the event'}`,
       });
 
-      navigate(`/dashboard/event/${res.event.id}`);
+      const eventId = res._id || res.id;
+      navigate(`/dashboard/event/attending/${eventId}`);
     } catch (err: any) {
+      // fetch-based errors throw an Error with message, while other libs may use response.data
+      const serverMessage = err?.message || (err?.response && err.response.data && (err.response.data.message || JSON.stringify(err.response.data)));
       toast({
-        title: "Could not join",
-        description:
-          err?.response?.data?.message ||
-          "You may have already joined or the event is full",
-        variant: "destructive",
+        title: 'Could not join',
+        description: serverMessage || 'You may have already joined or the event is full',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);

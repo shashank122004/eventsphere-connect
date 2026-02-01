@@ -61,7 +61,10 @@ const AttendingEvent = () => {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{event.title || 'Untitled Event'}</CardTitle>
+                <div>
+                  <CardTitle className="text-2xl">{event.title || 'Untitled Event'}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">Hosted by {event.host?.name || event.hostName || 'Unknown'}</p>
+                </div>
                 <span className={`px-3 py-1 rounded-full text-sm ${event.isPublic ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                   {event.isPublic ? 'Public' : 'Private'}
                 </span>

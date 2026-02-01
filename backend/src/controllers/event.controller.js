@@ -78,7 +78,9 @@ export const joinEvent = async (req, res) => {
 };
 
 export const getPublicEvents = async (req, res) => {
-  const events = await Event.find({ isPublic: true });
+  const date=new Date();
+  date.setHours(0,0,0,0);
+  const events = await Event.find({ isPublic: true, date: { $gte: date } });
   res.json(events);
 };
 
@@ -124,7 +126,7 @@ export const getEventHistory = async (req, res) => {
   const eventsAll = await Event.find({
     $or: [
       { host: req.user.id },
-      { "guests.user": req.user.id }
+      //{ 'guests.user': req.user.id }
     ]
   });
 

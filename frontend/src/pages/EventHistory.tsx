@@ -16,10 +16,12 @@ const EventHistory = () => {
       try {
         const data = await getEventHistory();
         if (!mounted) return;
-        const hosted = (data.hosted || []).map((e:any) => ({ ...e, type: 'hosted' }));
-        const joined = (data.joined || []).map((e:any) => ({ ...e, type: 'joined' }));
-        const merged = [...hosted, ...joined].sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setAll(merged);
+        // data is an array of events; determine type by checking if user is host
+        const events = (Array.isArray(data) ? data : data.events || []).map((e:any) => {
+          const isHosted = e.host && (String(e.host._id || e.host.id || e.host) === String(user?._id || user?.id));
+          return { ...e, type: isHosted ? 'hosted' : 'joined' };
+        }).sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setAll(events);
       } catch (err) {
         // ignore
       }

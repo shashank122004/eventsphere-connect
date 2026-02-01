@@ -19,8 +19,8 @@ const MyEvents = () => {
       try {
         const data = await getMyEvents();
         if (!mounted) return;
-        setHosted((data.hosted || data.hosted || data.hostedEvents || []).filter((e:any) => e.status === 'upcoming'));
-        setJoined((data.joined || data.joined || data.joinedEvents || []).filter((e:any) => e.status === 'upcoming'));
+        setHosted(data.hosted || []);
+        setJoined(data.joined || []);
       } catch (err) {
         // ignore
       }
