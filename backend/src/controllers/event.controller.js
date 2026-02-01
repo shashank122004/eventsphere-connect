@@ -79,12 +79,16 @@ export const joinEvent = async (req, res) => {
 
 export const getPublicEvents = async (req, res) => {
   try {
+    // Create today's date in "YYYY-MM-DD" format for string comparison
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
     
     const events = await Event.find({ 
       isPublic: true, 
-      date: { $gte: today } 
+      date: { $gte: todayString } 
     })
       .populate('host', 'name email')
       .populate('guests.user', 'name email')
