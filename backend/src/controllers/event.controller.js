@@ -78,11 +78,16 @@ export const joinEvent = async (req, res) => {
 };
 
 export const getPublicEvents = async (req, res) => {
-  const date=new Date();
-  date.setHours(0,0,0,0);
-  const events = await Event.find({ isPublic: true, date: { $gte: date } });
+  const today = new Date();
+
+  const events = await Event.find({
+    isPublic: true,
+    date: { $gte: today }
+  });
+
   res.json(events);
 };
+
 
 
 /* EVENT DETAILS PAGE */
