@@ -23,6 +23,7 @@
     "mongoose": "^9.1.1",
     "nodemailer": "^7.0.13",
     "qrcode": "^1.5.4",
+    "redis": "^6.0.0",
     "request": "^2.88.2",
     "resend": "^6.9.1",
     "response": "^0.18.0",
