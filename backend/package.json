@@ -1,0 +1,21 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cluster-key-slot": "^1.1.2",
+    "cors": "^2.8.6",
+    "object-assign": "^4.1.1",
+    "redis": "^6.0.0",
+    "vary": "^1.1.2"
+  },
+  "devDependencies": {}
+}

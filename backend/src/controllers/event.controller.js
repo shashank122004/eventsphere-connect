@@ -2,6 +2,7 @@ import Event from "../models/Event.model.js";
 import User from "../models/User.model.js";
 import { generateCode } from "../utils/generateCode.js";
 import { generateQR } from "../utils/generateQR.js";
+import  client  from "../config/redis.js";
 
 export const createEvent = async (req, res) => {
   const code = generateCode();
@@ -41,8 +42,16 @@ export const createEvent = async (req, res) => {
 export const joinEvent = async (req, res) => {
   const { code } = req.body;
   const event = await Event.findOne({ eventCode: code });
-
+ 
   if (!event) return res.status(404).json({ message: "Event not found" });
+  //check if event is completed by date
+  const today = new Date();
+  const eventDate = new Date(event.date);
+  today.setHours(0,0,0,0);
+  eventDate.setHours(0,0,0,0);
+  if (!isNaN(eventDate.getTime()) && eventDate < today) {
+    return res.status(400).json({ message: "Cannot join a completed event" });
+  }
   // prevent the same user from joining twice
   const joiningUser = await User.findById(req.user.id).select('name email');
   const alreadyJoined = event.guests.some(g => {
@@ -78,6 +87,17 @@ export const joinEvent = async (req, res) => {
 };
 
 export const getPublicEvents = async (req, res) => {
+  const cachedKey = 'publicEvents';
+  try{
+    const cached = await client.get(cachedKey);
+    if(cached){
+      return res.json(JSON.parse(cached));
+    }else{
+      console.log('No cache for public events, querying database...');
+    }
+  }catch(err){
+    console.error('Redis get error:', err.message);
+  }
   try {
     // Create today's date in "YYYY-MM-DD" format for string comparison
     const today = new Date();
@@ -93,7 +113,11 @@ export const getPublicEvents = async (req, res) => {
       .populate('host', 'name email')
       .populate('guests.user', 'name email')
       .sort({ date: 1 });
-    
+    try {
+      await client.setEx(cachedKey, 60, JSON.stringify(events)); // cache for 1 minute
+    } catch (err) {
+      console.error('Redis set error:', err.message);
+    }
     res.json(events);
   } catch (err) {
     console.error('getPublicEvents error:', err.message);
@@ -117,6 +141,18 @@ export const getEventById = async (req, res) => {
 /* MY EVENTS PAGE */
 export const getMyEvents = async (req, res) => {
   // fetch all related events and classify by date (avoid relying solely on stored status)
+  // applying redis service here to cache the results of this endpoint could be beneficial, as it may involve multiple queries and processing
+  
+  const cacheKey = `myEvents:${req.user.id}`;
+  try {
+    const cached = await client.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+  } catch (err) {
+    console.error('Redis get error:', err.message);
+    // proceed without cache on error
+  }
   const hostedAll = await Event.find({ host: req.user.id });
   const joinedAll = await Event.find({ 'guests.user': req.user.id });
 
@@ -135,12 +171,29 @@ export const getMyEvents = async (req, res) => {
   const hosted = hostedAll.filter(e => !isPast(e));
   const joined = joinedAll.filter(e => !isPast(e));
 
+  // cache the results for future requests
+  try {
+    await client.setEx(cacheKey, 60, JSON.stringify({ hosted, joined })); // cache for 1 hour
+  } catch (err) {
+    console.error('Redis set error:', err.message);
+  }
+
   res.json({ hosted, joined });
 };
 
 /* EVENT HISTORY PAGE */
 export const getEventHistory = async (req, res) => {
   // fetch all events related to user, then return those that are completed/past
+  const cacheKey = `eventHistory:${req.user.id}`;
+  try {
+    const cached = await client.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+  } catch (err) {
+    console.error('Redis get error:', err.message);
+    // proceed without cache on error 
+  }
   const eventsAll = await Event.find({
     $or: [
       { host: req.user.id },
@@ -161,6 +214,12 @@ export const getEventHistory = async (req, res) => {
   };
 
   const events = eventsAll.filter(e => e.status === 'completed' || isPast(e));
+  // cache the results for future requests
+  try {
+    await client.setEx(cacheKey, 3600, JSON.stringify(events)); // cache for 1 hour
+  } catch (err) {
+    console.error('Redis set error:', err.message);
+  }
   res.json(events);
 };
 

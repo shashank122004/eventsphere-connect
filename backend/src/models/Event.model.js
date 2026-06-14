@@ -21,7 +21,7 @@ const eventSchema = new mongoose.Schema({
     joinedAt: Date
   }],
 
-  status: { type: String, default: "upcoming" }
+  status: { type: String, default: "upcoming", enum: ["upcoming", "completed"] },
 }, { timestamps: true });
 
 export default mongoose.model("Event", eventSchema);

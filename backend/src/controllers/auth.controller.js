@@ -2,13 +2,7 @@ import User from "../models/User.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import sendOtpEmail from "../config/nodemailer.js";
-
-
-// In-memory storage for temp signup data and OTPs
-// tempSignups: email -> { name, phone, hashedPassword, expiresAt }
-// otpStore: email -> { hashedCode, expiresAt }
-const tempSignups = new Map();
-const otpStore = new Map();
+import client  from "../config/redis.js";
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -43,22 +37,32 @@ export const signup = async (req, res) => {
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Store temp signup data in memory (will be deleted after 10 mins or used)
-    tempSignups.set(emailLower, { 
-      name, 
-      phone, 
-      hashedPassword,
-      expiresAt: Date.now() + 10 * 60 * 1000
-    });
+    // Store temp signup data in Redis (will expire after 10 mins)
+    try{
+      await client.setEx(`signup:${emailLower}`, 600, JSON.stringify({ 
+        name, 
+        phone, 
+        hashedPassword,
+        expiresAt: Date.now() + 10 * 60 * 1000
+      }));
+    }catch(err){
+      console.error('Redis set error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
-    // Store OTP in memory
-    otpStore.set(emailLower, { hashedCode: hashedOtp, expiresAt });
+    // Store OTP in Redis
+    try{
+      await client.setEx(`otp:${emailLower}`, 600, JSON.stringify({ hashedCode: hashedOtp, expiresAt }));
+    }catch(err){
+      console.error('Redis set error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
     // Send verification email
     const emailSent = await sendVerificationEmail(email, otp);
     if (!emailSent) {
-      tempSignups.delete(emailLower);
-      otpStore.delete(emailLower);
+      await client.del(`signup:${emailLower}`);
+      await client.del(`otp:${emailLower}`);
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
 
@@ -93,7 +97,8 @@ export const login = async (req, res) => {
       const hashedOtp = await bcrypt.hash(otp, 10);
       const expiresAt = Date.now() + 10 * 60 * 1000;
 
-      otpStore.set(email.toLowerCase(), { hashedCode: hashedOtp, expiresAt });
+      // Store OTP in Redis
+      await client.setEx(`otp:${emailLower}`, 600, JSON.stringify({ hashedCode: hashedOtp, expiresAt }));
 
       // Send verification email
       await sendVerificationEmail(email, otp);
@@ -122,7 +127,14 @@ export const verifyEmailCode = async (req, res) => {
     }
 
     const emailLower = email.toLowerCase();
-    const otpData = otpStore.get(emailLower);
+    let otpData;
+    try {
+      const otpDataStr = await client.get(`otp:${emailLower}`);
+      otpData = otpDataStr ? JSON.parse(otpDataStr) : null;
+    } catch (err) {
+      console.error('Redis get error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
     // Check if OTP exists
     if (!otpData) {
@@ -131,8 +143,8 @@ export const verifyEmailCode = async (req, res) => {
 
     // Check if OTP expired
     if (Date.now() > otpData.expiresAt) {
-      otpStore.delete(emailLower);
-      tempSignups.delete(emailLower);
+      await client.del(`otp:${emailLower}`);
+      await client.del(`signup:${emailLower}`);
       return res.status(400).json({ message: 'OTP has expired. Please request a new one' });
     }
 
@@ -144,7 +156,15 @@ export const verifyEmailCode = async (req, res) => {
 
     // If this is a new signup, create the user now
     if (isNewSignup) {
-      const tempData = tempSignups.get(emailLower);
+      let tempData;
+      try {
+        const tempDataStr = await client.get(`signup:${emailLower}`);
+        tempData = tempDataStr ? JSON.parse(tempDataStr) : null;
+      } catch (err) {
+        console.error('Redis get error:', err.message);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+
       if (!tempData) {
         return res.status(400).json({ message: 'Signup data expired. Please signup again.' });
       }
@@ -158,9 +178,9 @@ export const verifyEmailCode = async (req, res) => {
         emailVerified: true, // Mark as verified immediately
       });
 
-      // Clean up
-      tempSignups.delete(emailLower);
-      otpStore.delete(emailLower);
+      // Clean up from Redis
+      await client.del(`signup:${emailLower}`);
+      await client.del(`otp:${emailLower}`);
 
       // Generate token
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
@@ -181,8 +201,8 @@ export const verifyEmailCode = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Clean up
-      otpStore.delete(emailLower);
+      // Clean up from Redis
+      await client.del(`otp:${emailLower}`);
 
       // Generate token
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
@@ -209,13 +229,18 @@ export const resendOtp = async (req, res) => {
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Store OTP in memory
-    otpStore.set(emailLower, { hashedCode: hashedOtp, expiresAt });
+    // Store OTP in Redis
+    try {
+      await client.setEx(`otp:${emailLower}`, 600, JSON.stringify({ hashedCode: hashedOtp, expiresAt }));
+    } catch (err) {
+      console.error('Redis set error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
     // Send verification email
     const emailSent = await sendVerificationEmail(email, otp);
     if (!emailSent) {
-      otpStore.delete(emailLower);
+      await client.del(`otp:${emailLower}`);
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
 
@@ -249,13 +274,18 @@ export const forgotPassword = async (req, res) => {
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Store OTP in memory
-    otpStore.set(emailLower, { hashedCode: hashedOtp, expiresAt });
+    // Store OTP in Redis
+    try {
+      await client.setEx(`otp:${emailLower}`, 600, JSON.stringify({ hashedCode: hashedOtp, expiresAt }));
+    } catch (err) {
+      console.error('Redis set error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
     // Send verification email
     const emailSent = await sendVerificationEmail(email, otp);
     if (!emailSent) {
-      otpStore.delete(emailLower);
+      await client.del(`otp:${emailLower}`);
       return res.status(500).json({ message: 'Failed to send reset OTP' });
     }
 
@@ -275,7 +305,14 @@ export const resetPassword = async (req, res) => {
     }
 
     const emailLower = email.toLowerCase();
-    const otpData = otpStore.get(emailLower);
+    let otpData;
+    try {
+      const otpDataStr = await client.get(`otp:${emailLower}`);
+      otpData = otpDataStr ? JSON.parse(otpDataStr) : null;
+    } catch (err) {
+      console.error('Redis get error:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
 
     // Check if OTP exists
     if (!otpData) {
@@ -284,7 +321,7 @@ export const resetPassword = async (req, res) => {
 
     // Check if OTP expired
     if (Date.now() > otpData.expiresAt) {
-      otpStore.delete(emailLower);
+      await client.del(`otp:${emailLower}`);
       return res.status(400).json({ message: 'OTP has expired. Please request a new one' });
     }
 
@@ -308,8 +345,8 @@ export const resetPassword = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Clean up OTP
-    otpStore.delete(emailLower);
+    // Clean up OTP from Redis
+    await client.del(`otp:${emailLower}`);
 
     res.json({ message: 'Password reset successfully. Please login with your new password.' });
   } catch (err) {
